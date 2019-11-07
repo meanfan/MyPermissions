@@ -2,20 +2,29 @@ package com.mean.mypermissions;
 
 import android.os.Bundle;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
+import com.mean.mypermissions.adapter.AppRVAdapter;
+import com.mean.mypermissions.bean.AppConfig;
+import com.mean.mypermissions.utils.PermissionUtil;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.os.Handler;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
+    private List<AppConfig> appConfigs;
+    private SwipeRefreshLayout swipeRefreshLayout;
+    private RecyclerView recyclerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,22 +33,44 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        initRefreshLayout();
+        forceRefresh();
+        checkXposed();
+    }
+
+    private void initRefreshLayout(){
+        swipeRefreshLayout = findViewById(R.id.app_list_sfl);
+        swipeRefreshLayout.setProgressViewOffset(true,50,200);
+        swipeRefreshLayout.setSize(SwipeRefreshLayout.LARGE);
+        swipeRefreshLayout.setOnRefreshListener(
+                new SwipeRefreshLayout.OnRefreshListener() {
+                    @Override
+                    public void onRefresh() {
+                        refreshAppList();
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                }
+        );
+    }
+
+    // may not visual safe
+    private void forceRefresh(){
+        new Handler().post(new Runnable() {
             @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+            public void run() {
+                swipeRefreshLayout.setRefreshing(true);
+                refreshAppList();
+                swipeRefreshLayout.setRefreshing(false);
             }
         });
+    }
 
-        if(isModuleActive()){
-            Toast.makeText(this,"Module Enabled",Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "handleLoadPackage: Module Enabled");
-        }else {
-            Toast.makeText(this,"Module NOT Enabled",Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "handleLoadPackage: Module Not Enabled");
-        }
+    private void refreshAppList(){
+        appConfigs = PermissionUtil.getAllUserAppConfigs(this);
+        //Log.d(TAG, "onCreate: appConfigs::"+appConfigs);
+        recyclerView = findViewById(R.id.app_list_rv);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(new AppRVAdapter(appConfigs));
     }
 
     @Override
@@ -62,6 +93,16 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    void checkXposed(){
+        if(isModuleActive()){
+            Toast.makeText(this,"模块已启用",Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "handleLoadPackage: Module Enabled");
+        }else {
+            Toast.makeText(this,"模块未启用",Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "handleLoadPackage: Module Not Enabled");
+        }
     }
 
     private boolean isModuleActive(){

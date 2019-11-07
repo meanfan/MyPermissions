@@ -21,8 +21,6 @@ public class SupportChecker implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        XposedBridge.log("Loaded app: " + lpparam.packageName);
-
         //check
         String appPackageName = "com.mean.mypermissions";
         String appTargetClassName = "com.mean.mypermissions.MainActivity";
