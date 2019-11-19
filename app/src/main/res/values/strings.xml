@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">MyPermissions</string>
-    <string name="action_settings">Settings</string>
+    <string name="action_settings">设置</string>
+    <string name="restrict_mode_default">默认</string>
+    <string name="restrict_mode_default_detail">（交由系统处理）</string>
+    <string name="restrict_mode_request">询问</string>
+    <string name="restrict_mode_allow">允许</string>
+    <string name="restrict_mode_deny">拒绝</string>
+    <string name="restrict_mode_allow_but_null">允许但返回空值</string>
+    <string name="restrict_mode_allow_but_fake">允许但返回假数据</string>
+    <string name="restrict_mode_allow_but_tint">（需要配置）</string>
+
 </resources>
