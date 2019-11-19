@@ -1,10 +1,11 @@
 package com.mean.mypermissions;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import com.mean.mypermissions.adapter.AppRVAdapter;
-import com.mean.mypermissions.bean.AppConfig;
-import com.mean.mypermissions.utils.PermissionUtil;
+import com.mean.mypermissions.utils.AppUtil;
+import com.mean.mypermissions.utils.SuUtil;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -12,17 +13,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
-import java.util.List;
-
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
-    private List<AppConfig> appConfigs;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
 
@@ -32,7 +29,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
         initRefreshLayout();
         forceRefresh();
         checkXposed();
@@ -46,31 +42,36 @@ public class MainActivity extends AppCompatActivity {
                 new SwipeRefreshLayout.OnRefreshListener() {
                     @Override
                     public void onRefresh() {
-                        refreshAppList();
-                        swipeRefreshLayout.setRefreshing(false);
+                        forceRefresh();
                     }
                 }
         );
     }
 
-    // may not visual safe
+    // use thread
     private void forceRefresh(){
-        new Handler().post(new Runnable() {
+        new Thread(){
             @Override
             public void run() {
-                swipeRefreshLayout.setRefreshing(true);
-                refreshAppList();
-                swipeRefreshLayout.setRefreshing(false);
+                App.appConfigs = AppUtil.getAllUserAppConfigs(MainActivity.this);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        recyclerView = findViewById(R.id.app_list_rv);
+                        recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+                        recyclerView.setAdapter(new AppRVAdapter(App.appConfigs));
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
             }
-        });
+        }.start();
+
     }
 
-    private void refreshAppList(){
-        appConfigs = PermissionUtil.getAllUserAppConfigs(this);
-        //Log.d(TAG, "onCreate: appConfigs::"+appConfigs);
-        recyclerView = findViewById(R.id.app_list_rv);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(new AppRVAdapter(appConfigs));
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        swipeRefreshLayout.setRefreshing(true);
     }
 
     @Override
@@ -98,10 +99,10 @@ public class MainActivity extends AppCompatActivity {
     void checkXposed(){
         if(isModuleActive()){
             Toast.makeText(this,"模块已启用",Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "handleLoadPackage: Module Enabled");
+            Log.d(TAG, "Module Enabled");
         }else {
             Toast.makeText(this,"模块未启用",Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "handleLoadPackage: Module Not Enabled");
+            Log.d(TAG, "Module Not Enabled");
         }
     }
 
