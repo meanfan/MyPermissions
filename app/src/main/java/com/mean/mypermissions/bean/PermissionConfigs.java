@@ -2,10 +2,11 @@ package com.mean.mypermissions.bean;
 
 import android.content.pm.PermissionInfo;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PermissionConfigs{
+public class PermissionConfigs implements Serializable {
     private Map<String, RestrictMode> permissions;
 
     public PermissionConfigs() {

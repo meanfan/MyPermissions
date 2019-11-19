@@ -3,9 +3,11 @@ package com.mean.mypermissions.bean;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 
-import com.mean.mypermissions.utils.PermissionUtil;
+import com.mean.mypermissions.utils.AppUtil;
 
-public class AppConfig {
+import java.io.Serializable;
+
+public class AppConfig implements Serializable {
     int id;
     String appName;
     String appPackageName;
@@ -37,7 +39,7 @@ public class AppConfig {
     }
 
     public Drawable getAppIconDrawable(Context context) {
-        return PermissionUtil.getAppIcon(context,appPackageName);
+        return AppUtil.getAppIcon(context, appPackageName);
     }
 
     public String getIsEnabled() {
