@@ -1,6 +1,5 @@
 package com.mean.mypermissions.hook;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
@@ -68,11 +67,6 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                                 filter.addAction(ImplantReceiver.ACTION);
                                                 context.registerReceiver(new ImplantReceiver(), filter);
                                             }
-
-                                            @Override
-                                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                                super.afterHookedMethod(param);
-                                            }
         });
 
         /*
@@ -86,7 +80,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         lpparam.classLoader,
                                         "checkSelfPermission",
                                         String.class,
-                                        HookPermission.permissionXCMethodHook(lpparam));
+                                        HookPermissionMethods.permissionCheckMethodHook(lpparam));
         /*
          * desc:   应用权限检查2
          * class:  android.app.Activity
@@ -98,12 +92,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         lpparam.classLoader,
                                         "shouldShowRequestPermissionRationale",
                                         String.class,
-                                        new XC_MethodReplacement() {
-                                            @Override
-                                            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                                return false;
-                                            }
-                                        });
+                                        XC_MethodReplacement.returnConstant(false));
 
         /*
          * desc:   应用权限检查3
@@ -116,7 +105,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         ClassLoader.getSystemClassLoader(),
                                         "checkCallingOrSelfPermission",
                                         String.class,
-                                        HookPermission.permissionXCMethodHook(lpparam));
+                                        HookPermissionMethods.permissionCheckMethodHook(lpparam));
 
         /*
          * desc:   应用权限申请
@@ -130,24 +119,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         "requestPermissions",
                                         String[].class,
                                         int.class,
-                                        new XC_MethodReplacement() {
-                                            @Override
-                                            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                                String[] permissions = (String[])param.args[0];
-                                                int requestCode = (int)param.args[1];
-                                                if(permissions!=null){
-                                                    int[] grantResults = new int[permissions.length];
-                                                    for (int g:grantResults) {
-                                                        g = PackageManager.PERMISSION_GRANTED;
-                                                    }
-                                                    XposedHelpers.callMethod(param.thisObject,
-                                                                             "onRequestPermissionsResult",
-                                                                             requestCode,permissions,grantResults);
-                                                }
-                                                return null;
-                                            }
-
-                                        });
+                                        HookPermissionMethods.permissionRequestMethodReplacement(lpparam));
 
     }
 
