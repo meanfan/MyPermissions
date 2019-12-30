@@ -1,36 +1,27 @@
 package com.mean.mypermissions.bean;
 
-import android.content.pm.PermissionInfo;
+import org.greenrobot.greendao.annotation.Entity;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Hashtable;
 
-public class PermissionConfigs implements Serializable {
-    private Map<String, RestrictMode> permissions;
-
-    public PermissionConfigs() {
-        permissions= new HashMap<>();
-    }
-
+@Entity
+public class PermissionConfigs extends Hashtable<String,RestrictMode> implements Serializable {
+    static final long serialVersionUID = 1;
     public void restoreAllMode(){
-        for(String key:permissions.keySet()){
-            permissions.put(key,RestrictMode.DEFAULT);
+        for(String key:keySet()){
+            put(key,RestrictMode.DEFAULT);
         }
     }
 
-    public Map<String, RestrictMode> getAll(){
-        return permissions;
-    }
-
     public void add(String name, RestrictMode mode){
-        permissions.put(name,mode);
+        put(name,mode);
     }
     public void add(String name){
-        permissions.put(name,RestrictMode.DEFAULT);
+        put(name,RestrictMode.DEFAULT);
     }
 
     public RestrictMode get(String name){
-        return permissions.get(name);
+        return get(name);
     }
 }
