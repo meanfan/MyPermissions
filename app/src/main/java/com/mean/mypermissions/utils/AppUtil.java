@@ -59,11 +59,13 @@ public class AppUtil {
         List<PackageInfo> packageInfos = getAllAppInfo(context);
         List<AppConfig> appConfigs = Collections.synchronizedList(new ArrayList<AppConfig>());
         for(PackageInfo packageInfo:packageInfos){
-            //TODO 跳过系统应用
-//            if(packageInfo.applicationInfo.flags == ApplicationInfo.FLAG_SYSTEM ||
-//                    packageInfo.applicationInfo.flags == ApplicationInfo.FLAG_UPDATED_SYSTEM_APP){
-//                break;
-//            }
+            // 跳过系统应用
+            boolean isSysApp = (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 1;
+            boolean isSysUpd = (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 1;
+            boolean isSystemApp = isSysApp || isSysUpd;
+            if(isSystemApp){
+                continue;
+            }
             AppConfig appConfig = new AppConfig();
             if(setAppConfigByPackageInfo(context,appConfig,packageInfo)) {
                 appConfigs.add(appConfig);
