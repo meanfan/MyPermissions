@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.Hashtable;
 
 @Entity
-public class PermissionConfigs extends Hashtable<String,RestrictMode> implements Serializable {
+public class PermissionConfigs extends Hashtable<String,Integer> implements Serializable {
     static final long serialVersionUID = 1;
     public void restoreAllMode(){
         for(String key:keySet()){
@@ -14,7 +14,7 @@ public class PermissionConfigs extends Hashtable<String,RestrictMode> implements
         }
     }
 
-    public void add(String name, RestrictMode mode){
+    public void add(String name, Integer mode){
         put(name,mode);
     }
     public void add(String name){
@@ -24,4 +24,6 @@ public class PermissionConfigs extends Hashtable<String,RestrictMode> implements
     public RestrictMode get(String name){
         return get(name);
     }
+
+
 }
