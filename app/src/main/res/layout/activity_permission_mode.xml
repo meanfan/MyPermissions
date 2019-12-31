@@ -22,6 +22,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <RadioGroup
+            android:id="@+id/rg_mode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"

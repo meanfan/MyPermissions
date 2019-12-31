@@ -10,6 +10,7 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.mean.mypermissions.App;
 import com.mean.mypermissions.PermissionActivity;
 import com.mean.mypermissions.R;
 import com.mean.mypermissions.bean.AppConfig;
@@ -46,12 +47,18 @@ public class AppRVAdapter extends RecyclerView.Adapter<AppRVAdapter.VH> {
         if(icon != null) {
             holder.icon.setImageDrawable(icon);
         }
-        holder.status.setText(appConfig.getIsEnabled());
+        if(appConfig.getIsEnabled()){
+            holder.status.setText("启用");
+        }else {
+            holder.status.setText("未启用");
+        }
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(v.getContext(), PermissionActivity.class);
-                intent.putExtra("appPos",position);
+                intent.putExtra("appConfig",appConfig);
+                //intent.putExtra("appPackageName", appConfig.getAppPackageName());
+                //intent.putExtra("appPermissionConfigs",appConfig.getPermissionConfigs());
                 v.getContext().startActivity(intent);
             }
         });

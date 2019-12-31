@@ -1,16 +1,19 @@
 package com.mean.mypermissions.adapter;
 
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.mean.mypermissions.PermissionActivity;
 import com.mean.mypermissions.PermissionModeActivity;
 import com.mean.mypermissions.R;
+import com.mean.mypermissions.bean.AppConfig;
 import com.mean.mypermissions.bean.PermissionConfigs;
 import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.utils.AppUtil;
@@ -20,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class PermissionRVAdapter extends RecyclerView.Adapter<PermissionRVAdapter.VH> {
+    public static final String TAG = "PermissionRVAdapter";
     //创建ViewHolder
     public static class VH extends RecyclerView.ViewHolder{
         public final TextView name;
@@ -31,37 +35,49 @@ public class PermissionRVAdapter extends RecyclerView.Adapter<PermissionRVAdapte
         }
     }
 
-    private PermissionConfigs permissionConfigs;
-    Map<String, RestrictMode> permissions;
+    private AppConfig appConfig;
     List<String> permissionNames;
-    List<RestrictMode> permissionModes;
+    List<Integer> permissionModes;
 
     private PermissionRVAdapter(){}
 
-    public PermissionRVAdapter(PermissionConfigs configs) {
-        this.permissionConfigs = configs;
-        permissions=permissionConfigs.getAll();
-        permissionNames = new ArrayList<>(permissions.keySet());
-        permissionModes = new ArrayList<>(permissions.values());
+    public PermissionRVAdapter(AppConfig config) {
+        this.appConfig = config;
+        if(appConfig.getPermissionConfigs()!=null) {
+            permissionNames = new ArrayList<>(appConfig.getPermissionConfigs().keySet());
+            permissionModes = new ArrayList<>(appConfig.getPermissionConfigs().values());
+        }else {
+            Log.d(TAG, "PermissionRVAdapter: no permissions");
+        }
     }
 
     @Override
-    public void onBindViewHolder(VH holder, int position) {
+    public void onBindViewHolder(VH holder, final int position) {
         holder.name.setText(permissionNames.get(position));
-        holder.status.setText(AppUtil.getRestrictModeName(holder.itemView.getContext(),permissionModes.get(position)));
+        holder.status.setText(RestrictMode.parse2String(holder.itemView.getContext(),permissionModes.get(position)));
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(v.getContext(), PermissionModeActivity.class);
-                intent.putExtra("permissionConfig",permissionConfigs);
-                v.getContext().startActivity(intent);
+                if(appConfig.isEnabled()) {
+                    Intent intent = new Intent(v.getContext(), PermissionModeActivity.class);
+                    intent.putExtra("appConfig", appConfig);
+                    intent.putExtra("permissionName",permissionNames.get(position));
+                    intent.putExtra("permissionMode",permissionModes.get(position));
+                    v.getContext().startActivity(intent);
+                }else {
+                    Toast.makeText(v.getContext(),"请先启用",Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
 
     @Override
     public int getItemCount() {
-        return permissions.size();
+        if(appConfig.getPermissionConfigs()==null){
+            return 0;
+        }else {
+            return appConfig.getPermissionConfigs().size();
+        }
     }
 
     @Override

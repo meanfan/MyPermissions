@@ -67,7 +67,13 @@ public class AppUtil {
                 continue;
             }
             AppConfig appConfig = new AppConfig();
-            if(setAppConfigByPackageInfo(context,appConfig,packageInfo)) {
+            if(initAppConfigByPackageInfo(context,appConfig,packageInfo)) {
+                AppConfig appConfigFromDB = AppConfigDBUtil.query(appConfig.getAppPackageName());
+                if(appConfigFromDB != null){
+                    appConfig.setEnabled(appConfigFromDB.isEnabled());
+                    //TODO 未考虑App由于更新导致的权限变化
+                    appConfig.setPermissionConfigs(appConfigFromDB.getPermissionConfigs());
+                }
                 appConfigs.add(appConfig);
             }else {
                 Log.e(TAG, "setAppConfigByPackageInfo failure" );
@@ -76,7 +82,7 @@ public class AppUtil {
         return appConfigs;
     }
 
-    public static boolean setAppConfigByPackageInfo(Context context,AppConfig appConfig, PackageInfo packageInfo){
+    public static boolean initAppConfigByPackageInfo(Context context,AppConfig appConfig, PackageInfo packageInfo){
         if(appConfig == null || packageInfo == null){
             return false;
         }
@@ -93,22 +99,4 @@ public class AppUtil {
         return  true;
     }
 
-    public static String getRestrictModeName(Context context, RestrictMode mode){
-        switch (mode){
-            case ALLOW:
-                return context.getString(R.string.restrict_mode_allow);
-            case DENY:
-                return context.getString(R.string.restrict_mode_deny);
-            case DEFAULT:
-                return context.getString(R.string.restrict_mode_default);
-            case REQUEST:
-                return context.getString(R.string.restrict_mode_request);
-            case ALLOW_BUT_FAKE:
-                return context.getString(R.string.restrict_mode_allow_but_fake);
-            case ALLOW_BUT_NULL:
-                return context.getString(R.string.restrict_mode_allow_but_null);
-            default:
-                return null;
-        }
-    }
 }

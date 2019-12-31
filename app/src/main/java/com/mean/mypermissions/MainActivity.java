@@ -1,11 +1,14 @@
 package com.mean.mypermissions;
 
-import android.content.Intent;
+import android.app.Activity;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
+import com.crossbowffs.remotepreferences.RemotePreferences;
 import com.mean.mypermissions.adapter.AppRVAdapter;
+import com.mean.mypermissions.bean.AppConfig;
 import com.mean.mypermissions.utils.AppUtil;
-import com.mean.mypermissions.utils.SuUtil;
+import com.mean.mypermissions.utils.PreferenceUtils;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -16,6 +19,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         initRefreshLayout();
+        swipeRefreshLayout.setRefreshing(true);
         forceRefresh();
         checkXposed();
     }
@@ -54,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 App.appConfigs = AppUtil.getAllUserAppConfigs(MainActivity.this);
+
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -71,13 +78,22 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        swipeRefreshLayout.setRefreshing(true);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        // Get the action view used in your toggleservice item
+        final MenuItem toggleService = menu.findItem(R.id.action_toggle);
+        final Switch actionView = (Switch) toggleService.getActionView();
+        actionView.setChecked(isModuleActive());
+        actionView.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                moduleToggle(isChecked);
+            }
+        });
         return true;
     }
 
@@ -104,6 +120,13 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this,"模块未启用",Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Module Not Enabled");
         }
+    }
+
+    void moduleToggle(boolean status){
+        SharedPreferences prefs = new RemotePreferences(this, PreferenceUtils.AUTHORY, PreferenceUtils.MODULE_CONFIG_NAME);
+        SharedPreferences.Editor mEditor  = prefs.edit();
+        mEditor.putBoolean(PreferenceUtils.ENABLE, status).commit();
+        Log.d(TAG, "moduleToggle: "+status);
     }
 
     private boolean isModuleActive(){

@@ -9,7 +9,7 @@ import java.util.List;
 public class AppConfigDBUtil {
     public static void insert(AppConfig appConfig){
         DaoSession daoSession = App.getDaoSession();
-        daoSession.insert(appConfig);
+        daoSession.insertOrReplace(appConfig);
     }
 
     public static void delete(AppConfig appConfig){
@@ -30,5 +30,4 @@ public class AppConfigDBUtil {
             return null;
         }
     }
-
 }

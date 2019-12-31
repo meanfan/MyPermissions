@@ -10,7 +10,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
+        <provider
+            android:name=".ModulePreferenceProvider"
+            android:authorities="com.mean.mypermissions.pref.module"
+            android:exported="true"/>
         <receiver
             android:name=".receiver.RequestPermissionReceiver"
             android:enabled="true"
@@ -20,7 +23,7 @@
             </intent-filter>
         </receiver>
 
-        <activity android:name=".PermissionModeActivity"></activity>
+        <activity android:name=".PermissionModeActivity" />
         <activity android:name=".PermissionActivity" />
         <activity
             android:name=".MainActivity"
