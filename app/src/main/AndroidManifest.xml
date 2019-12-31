@@ -23,7 +23,13 @@
             </intent-filter>
         </receiver>
 
-        <activity android:name=".PermissionModeActivity" />
+        <activity android:name=".PermissionModeActivity"
+            android:theme="@style/ActivityDialogStyle" >
+            <intent-filter>
+                <action android:name="com.mean.mypermissions.intent.REQUESTPERMISSIONS"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
         <activity android:name=".PermissionActivity" />
         <activity
             android:name=".MainActivity"

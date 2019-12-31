@@ -59,8 +59,7 @@ public class MainActivity extends AppCompatActivity {
         new Thread(){
             @Override
             public void run() {
-                App.appConfigs = AppUtil.getAllUserAppConfigs(MainActivity.this);
-
+                App.initAppConfig(MainActivity.this);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

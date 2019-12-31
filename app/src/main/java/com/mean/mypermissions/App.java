@@ -1,11 +1,13 @@
 package com.mean.mypermissions;
 
 import android.app.Application;
+import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.mean.mypermissions.bean.AppConfig;
 import com.mean.mypermissions.dao.DaoMaster;
 import com.mean.mypermissions.dao.DaoSession;
+import com.mean.mypermissions.utils.AppUtil;
 
 import java.util.List;
 
@@ -28,5 +30,9 @@ public class App extends Application {
 
     public static DaoSession getDaoSession() {
         return daoSession;
+    }
+
+    public static void initAppConfig(Context context){
+        App.appConfigs = AppUtil.getAllUserAppConfigs(context);
     }
 }

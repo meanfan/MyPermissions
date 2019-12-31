@@ -1,1 +1,4 @@
 /build
+/src/main/java/com/mean/mypermissions/dao/DaoSession.java
+/src/main/java/com/mean/mypermissions/dao/DaoMaster.java
+/src/main/java/com/mean/mypermissions/dao/AppConfigDao.java
