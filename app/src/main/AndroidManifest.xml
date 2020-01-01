@@ -14,19 +14,12 @@
             android:name=".ModulePreferenceProvider"
             android:authorities="com.mean.mypermissions.pref.module"
             android:exported="true"/>
-        <receiver
-            android:name=".receiver.RequestPermissionReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.mean.mypermissions.action.REQUEST" />
-            </intent-filter>
-        </receiver>
 
         <activity android:name=".PermissionModeActivity"
             android:theme="@style/ActivityDialogStyle" >
             <intent-filter>
-                <action android:name="com.mean.mypermissions.intent.REQUESTPERMISSIONS"/>
+                <action android:name="com.mean.mypermissions.intent.permissions.REQUEST"/>
+                <action android:name="com.mean.mypermissions.intent.permissions.CHECK"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity>

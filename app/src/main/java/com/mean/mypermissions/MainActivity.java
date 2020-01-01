@@ -1,6 +1,7 @@
 package com.mean.mypermissions;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 
@@ -10,6 +11,8 @@ import com.mean.mypermissions.bean.AppConfig;
 import com.mean.mypermissions.utils.AppUtil;
 import com.mean.mypermissions.utils.PreferenceUtils;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -25,6 +28,7 @@ import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
+    public static final int REQUESTCODE_CONFIG = 0;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
 
@@ -130,5 +134,19 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isModuleActive(){
         return false;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if(requestCode == REQUESTCODE_CONFIG){
+            if(resultCode == RESULT_OK){
+                boolean isEnabled = data.getBooleanExtra("isEnabled",false);
+                int pos = data.getIntExtra("appListPos",-1);
+                if(pos>=0){
+                    App.appConfigs.get(pos).setEnabled(isEnabled);
+                    recyclerView.getAdapter().notifyDataSetChanged();
+                }
+            }
+        }
     }
 }

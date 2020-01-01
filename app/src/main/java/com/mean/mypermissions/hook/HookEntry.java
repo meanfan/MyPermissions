@@ -1,12 +1,10 @@
 package com.mean.mypermissions.hook;
 
+import android.app.Activity;
 import android.content.Context;
-import android.content.IntentFilter;
-import android.content.pm.PackageManager;
+import android.content.Intent;
 
-import com.mean.mypermissions.App;
 import com.mean.mypermissions.MainActivity;
-import com.mean.mypermissions.receiver.ImplantReceiver;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -18,9 +16,10 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit {
-    private final static String modulePackageName = App.class.getPackage().getName();
+    public final static String modulePackageName = "com.mean.mypermissions";
     private XSharedPreferences sharedPreferences;
-    private Context context;
+    private Context context = null;
+    protected static Activity currentActivity = null;
     //private final ImplantReceiver receiver = new ImplantReceiver();
     //public static volatile Activity currentActivity = null;
     @Override
@@ -39,35 +38,28 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                             "isModuleActive",
                                             XC_MethodReplacement.returnConstant(true));
             XposedBridge.log("self hooked~~~~~");
+            return;
         }
 
         if(!lpparam.packageName.equals("com.mean.permissionexample")){
             return;
         }
+
         XposedBridge.log("load app:"+lpparam.packageName);
 
-        /*
-         * desc:   注入广播
-         * class:  android.app.Application
-         * method: onCreate();
-         * type:   MethodHook
-         * ref:
-         */
-        XposedHelpers.findAndHookMethod("android.app.Application",
-                                        lpparam.classLoader,
-                                        "onCreate",
+        XposedHelpers.findAndHookMethod(Activity.class,
+                                        "onResume",
                                         new XC_MethodHook() {
                                             @Override
-                                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                                context = (Context) param.thisObject;
-                                                if(context == null){
-                                                    XposedBridge.log("context is null");
+                                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                                                if(param.thisObject == null){
+                                                    XposedBridge.log("ERROR: activity is NULL");
+                                                }else {
+                                                    XposedBridge.log("HOOK: activity got");
+                                                    currentActivity = (Activity) param.thisObject;
                                                 }
-                                                IntentFilter filter = new IntentFilter();
-                                                filter.addAction(ImplantReceiver.ACTION);
-                                                context.registerReceiver(new ImplantReceiver(), filter);
                                             }
-        });
+                                        });
 
         /*
          * desc:   应用权限检查1
@@ -80,7 +72,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         lpparam.classLoader,
                                         "checkSelfPermission",
                                         String.class,
-                                        HookPermissionMethods.permissionCheckMethodHook(lpparam));
+                                        HookPermissionMethods.checkPermission(lpparam));
         /*
          * desc:   应用权限检查2
          * class:  android.app.Activity
@@ -105,13 +97,13 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         ClassLoader.getSystemClassLoader(),
                                         "checkCallingOrSelfPermission",
                                         String.class,
-                                        HookPermissionMethods.permissionCheckMethodHook(lpparam));
+                                        HookPermissionMethods.checkPermission(lpparam));
 
         /*
          * desc:   应用权限申请
          * class:  android.app.Activity
          * method: requestPermissions(@NonNull String[] permissions, int requestCode);
-         * type:   MethodReplacement
+         * type:   MethodHook
          * ref:
          */
         XposedHelpers.findAndHookMethod("android.app.Activity",
@@ -119,7 +111,19 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         "requestPermissions",
                                         String[].class,
                                         int.class,
-                                        HookPermissionMethods.permissionRequestMethodReplacement(lpparam));
+                                        HookPermissionMethods.requestPermissions(lpparam));
+
+        /*
+         * desc:   应用权限申请结果回调
+         * class:  android.app.Activity
+         * method: void onActivityResult(int requestCode, int resultCode, @Nullable Intent data)
+         * type:   MethodHook
+         * ref:
+         */
+        XposedHelpers.findAndHookMethod("android.app.Activity", lpparam.classLoader,
+                                        "onActivityResult",
+                                        int.class, int.class, Intent.class,
+                                        HookPermissionMethods.onActivityResult(lpparam));
 
     }
 

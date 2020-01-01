@@ -43,6 +43,11 @@ public class PermissionRVAdapter extends RecyclerView.Adapter<PermissionRVAdapte
 
     public PermissionRVAdapter(AppConfig config) {
         this.appConfig = config;
+        updateData();
+    }
+
+    //在notify前调用
+    public void updateData(){
         if(appConfig.getPermissionConfigs()!=null) {
             permissionNames = new ArrayList<>(appConfig.getPermissionConfigs().keySet());
             permissionModes = new ArrayList<>(appConfig.getPermissionConfigs().values());
@@ -61,9 +66,13 @@ public class PermissionRVAdapter extends RecyclerView.Adapter<PermissionRVAdapte
                 if(appConfig.isEnabled()) {
                     Intent intent = new Intent(v.getContext(), PermissionModeActivity.class);
                     intent.putExtra("appConfig", appConfig);
-                    intent.putExtra("permissionName",permissionNames.get(position));
-                    intent.putExtra("permissionMode",permissionModes.get(position));
-                    v.getContext().startActivity(intent);
+                    String[] permissionNamesIntent = new String[1];
+                    int[] permissionModesIntent = new int[1];
+                    permissionNamesIntent[0] = permissionNames.get(position);
+                    permissionModesIntent[0] = permissionModes.get(position);
+                    intent.putExtra("permissionNames",permissionNamesIntent);
+                    intent.putExtra("permissionModes",permissionModesIntent);
+                    ((PermissionActivity)v.getContext()).startActivityForResult(intent,PermissionActivity.REQUESTCODE_CONFIG);
                 }else {
                     Toast.makeText(v.getContext(),"请先启用",Toast.LENGTH_SHORT).show();
                 }

@@ -1,69 +1,148 @@
 package com.mean.mypermissions.hook;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.AndroidAppHelper;
-import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
+import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+
+import androidx.core.app.ActivityCompat;
+
+import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.receiver.RequestPermissionReceiver;
 
+import java.util.Locale;
+
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import static android.app.Activity.RESULT_OK;
 
 public class HookPermissionMethods extends HookMethods{
+    public static final int REQUEST_CODE_REQUESTPERMISSIONS = 2342;
+    public static final String PERMISSION_SPECIAL_SKIP_CONTROL = "com.mean.permission.special.SKIP_CONTROL";
 
-    public static XC_MethodReplacement permissionRequestMethodReplacement(final XC_LoadPackage.LoadPackageParam lpparam){
-        return new XC_MethodReplacement() {
+    public static XC_MethodHook requestPermissions(final XC_LoadPackage.LoadPackageParam lpparam){
+        return new XC_MethodHook() {
+
             @Override
-            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                XposedBridge.log("HOOK: requestPermissions: name: " + param.args[0]);
                 Context context = (Context) param.thisObject;
                 String[] permissions = (String[])param.args[0];
-                int requestCode = (int)param.args[1];
-                if(permissions!=null){
-                    int[] grantResults = new int[permissions.length];
-                    for (int g:grantResults) {
-                        g = PackageManager.PERMISSION_GRANTED;
+                if(permissions.length>0 && !permissions[0].equals(PERMISSION_SPECIAL_SKIP_CONTROL)){
+                    Intent intent = new Intent();
+                    intent.setAction("com.mean.mypermissions.intent.permissions.REQUEST");
+                    intent.addCategory("android.intent.category.DEFAULT");
+                    intent.putExtra("packageName",context.getPackageName());
+                    intent.putExtra("permissionNames",permissions);
+                    intent.putExtra("rawRequestCode",(int)param.args[1]);
+                    Activity activity = findActivity(context);
+                    if(activity!=null){
+                        activity.startActivityForResult(intent, REQUEST_CODE_REQUESTPERMISSIONS);
+                    }else {
+                        XposedBridge.log("ERROR: activity is NULL");
                     }
-                    //onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-                    XposedHelpers.callMethod(param.thisObject,
-                                             "onRequestPermissionsResult",
-                                             requestCode, permissions, grantResults);
-                    sendBroadCast(context,lpparam.packageName,permissions[0]); //不妨只传一个
+                    param.setResult(null);
+                }else if(permissions.length>=2){
+                    for(int i=0;i<permissions.length-1;i++){
+                        String[] newPermissions = new String[permissions.length-1];
+                        newPermissions[i] = permissions[i+1];
+                        param.args[0] = newPermissions; //交由系统
+                    }
                 }
-                return null;
+
             }
         };
     }
 
-    public static XC_MethodHook permissionCheckMethodHook(final XC_LoadPackage.LoadPackageParam lpparam){
+    public static XC_MethodHook checkPermission(final XC_LoadPackage.LoadPackageParam lpparam){
         return new XC_MethodHook() {
             //hook回调函数
             @Override
             protected void beforeHookedMethod(final MethodHookParam param) throws Throwable {
-                XposedBridge.log("HOOK: permission: name: " + param.args[0]);
+                XposedBridge.log("HOOK: checkPermission: name: " + param.args[0]);
                 Context context = (Context) param.thisObject;
-                if (null == context) {
-                    XposedBridge.log("ERROR: context is NULL");
-                    return;
+                String permissions = (String)param.args[0];
+                Intent intent = new Intent();
+                intent.setAction("com.mean.mypermissions.intent.permissions.CHECK");
+                intent.addCategory("android.intent.category.DEFAULT");
+                intent.putExtra("packageName",context.getPackageName());
+                intent.putExtra("permissionNames",permissions);
+                Activity activity = findActivity(context);
+                if(activity!=null){
+                    //activity.startActivityForResult(intent,REQUEST_CODE_REQUESTPERMISSIONS);
+                }else {
+                    XposedBridge.log("ERROR: activity is NULL");
                 }
-                if(null == lpparam){
-                    XposedBridge.log("ERROR: lpparam is NULL");
-                    return;
-                }
-                sendBroadCast(context,lpparam.packageName,param.args[0].toString());
+
+                //sendBroadCast(context,lpparam.packageName,param.args[0].toString());
                 XposedBridge.log("HOOK: permission: Broadcast send");
+                //showDialog((Activity) param.thisObject,lpparam,param);
                 param.setResult(PackageManager.PERMISSION_GRANTED);  //TODO 根据配置文件决定结果
             }
         };
     }
 
+    public static XC_MethodHook onActivityResult(final XC_LoadPackage.LoadPackageParam lpparam){
+        return new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                Activity activity = (Activity) param.thisObject;
+                int requestCode = (int)param.args[0];
+                int resultCode = (int)param.args[1];
+                Intent intent = (Intent)param.args[2];
+                int rawRequestCode = intent.getIntExtra("rawRequestCode",0);
+                if(requestCode == REQUEST_CODE_REQUESTPERMISSIONS){
+                    if(resultCode == RESULT_OK){
+                        if(intent!=null){
+                            String[] permissionNames = intent.getStringArrayExtra("permissionNames");
+                            int[] permissionModes = intent.getIntArrayExtra("permissionModes");
+                            if(permissionNames!=null && permissionModes!=null){
+                                int[] grantResults = new int[permissionNames.length];
+                                for(int i=0;i<permissionNames.length;i++){
+
+                                    switch (permissionModes[i]){
+                                        case RestrictMode.ALLOW:   //ALLOW等同于DEFAULT
+                                        case RestrictMode.DEFAULT:
+                                            String[] permissionName2Sys = new String[2];
+                                            permissionName2Sys[0] =PERMISSION_SPECIAL_SKIP_CONTROL; //用于跳过拦截
+                                            permissionName2Sys[1] = permissionNames[i];
+                                            ActivityCompat.requestPermissions(activity,permissionName2Sys, rawRequestCode);
+                                            grantResults[i] = PackageManager.PERMISSION_GRANTED;
+                                            break;
+                                        case RestrictMode.DENY:
+                                            grantResults[i] = PackageManager.PERMISSION_DENIED;
+                                            break;
+                                        case RestrictMode.ALLOW_BUT_NULL:
+                                            grantResults[i] = PackageManager.PERMISSION_GRANTED;
+                                            break;
+                                        case RestrictMode.ALLOW_BUT_FAKE:
+                                            grantResults[i] = PackageManager.PERMISSION_GRANTED;
+                                            break;
+                                    }
+                                }
+                                //target: onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+                                for(int i=0;i<permissionNames.length;i++){
+                                    XposedBridge.log(String.format(Locale.CHINA,"%d %s %d", rawRequestCode, permissionNames[i], grantResults[i]));
+                                }
+
+                                XposedHelpers.callMethod(param.thisObject,
+                                                         "onRequestPermissionsResult",
+                                                         rawRequestCode, permissionNames, grantResults);
+                                //sendBroadCast(context,lpparam.packageName,permissions[0]); //广播弃用
+                            }
+                        }
+
+                    }
+                }
+            }
+        };
+    }
+
+    @Deprecated
     private static void sendBroadCast(Context context, String packageName, String permissionName) {
         Intent intent = new Intent();
         intent.setAction("com.mean.mypermissions.action.REQUEST");
@@ -75,30 +154,15 @@ public class HookPermissionMethods extends HookMethods{
         context.sendBroadcast(intent);
     }
 
-    //TODO 获取不到activity。。。
-    private static void showDialog(Activity context, XC_LoadPackage.LoadPackageParam lpparam, final XC_MethodHook.MethodHookParam param){
-        String msg = String.format("%s 请求权限：\n%s",lpparam.packageName,param.args[0].toString());
-        AlertDialog.Builder builder = new AlertDialog.Builder((Activity)context);
-        final AlertDialog dialog = builder.setMessage(msg)
-                .setCancelable(false)
-                .setPositiveButton("交由系统", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // go to system
-                    }
-                })
-                .setNeutralButton("假允许", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        param.setResult(PackageManager.PERMISSION_GRANTED);
-                    }
-                })
-                .setNegativeButton("拒绝", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        param.setResult(PackageManager.PERMISSION_DENIED);
-                    }
-                }).create();
-        dialog.show();
+    public static Activity findActivity(Context context) {
+        if (context instanceof Activity) {
+            return (Activity) context;
+        }
+        if (context instanceof ContextWrapper) {
+            ContextWrapper wrapper = (ContextWrapper) context;
+            return findActivity(wrapper.getBaseContext());
+        } else {
+            return null;
+        }
     }
 }

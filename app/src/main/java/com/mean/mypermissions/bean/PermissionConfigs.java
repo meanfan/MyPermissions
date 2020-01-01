@@ -21,9 +21,4 @@ public class PermissionConfigs extends Hashtable<String,Integer> implements Seri
         put(name,RestrictMode.DEFAULT);
     }
 
-    public RestrictMode get(String name){
-        return get(name);
-    }
-
-
 }

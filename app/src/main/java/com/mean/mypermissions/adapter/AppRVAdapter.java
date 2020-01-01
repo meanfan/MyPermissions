@@ -11,6 +11,7 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.mean.mypermissions.App;
+import com.mean.mypermissions.MainActivity;
 import com.mean.mypermissions.PermissionActivity;
 import com.mean.mypermissions.R;
 import com.mean.mypermissions.bean.AppConfig;
@@ -57,9 +58,10 @@ public class AppRVAdapter extends RecyclerView.Adapter<AppRVAdapter.VH> {
             public void onClick(View v) {
                 Intent intent = new Intent(v.getContext(), PermissionActivity.class);
                 intent.putExtra("appConfig",appConfig);
+                intent.putExtra("appListPos",position);
                 //intent.putExtra("appPackageName", appConfig.getAppPackageName());
                 //intent.putExtra("appPermissionConfigs",appConfig.getPermissionConfigs());
-                v.getContext().startActivity(intent);
+                ((MainActivity)v.getContext()).startActivityForResult(intent,MainActivity.REQUESTCODE_CONFIG);
             }
         });
     }

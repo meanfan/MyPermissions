@@ -14,6 +14,7 @@ public class AppConfigDBUtil {
 
     public static void delete(AppConfig appConfig){
         DaoSession daoSession = App.getDaoSession();
+        daoSession.delete(appConfig);
     }
 
     public static void update(AppConfig appConfig){
