@@ -12,6 +12,8 @@ import androidx.core.app.ActivityCompat;
 import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.receiver.RequestPermissionReceiver;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -29,9 +31,16 @@ public class HookPermissionMethods extends HookMethods{
 
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                XposedBridge.log("HOOK: requestPermissions: name: " + param.args[0]);
+
                 Context context = (Context) param.thisObject;
                 String[] permissions = (String[])param.args[0];
+
+                if(permissions!=null){
+                    for(String p:permissions){
+                        XposedBridge.log("-------------------------");
+                        XposedBridge.log("HOOK: requestPermissions:" + p);
+                    }
+                }
                 if(permissions.length>0 && !permissions[0].equals(PERMISSION_SPECIAL_SKIP_CONTROL)){
                     Intent intent = new Intent();
                     intent.setAction("com.mean.mypermissions.intent.permissions.REQUEST");
@@ -47,11 +56,9 @@ public class HookPermissionMethods extends HookMethods{
                     }
                     param.setResult(null);
                 }else if(permissions.length>=2){
-                    for(int i=0;i<permissions.length-1;i++){
-                        String[] newPermissions = new String[permissions.length-1];
-                        newPermissions[i] = permissions[i+1];
-                        param.args[0] = newPermissions; //交由系统
-                    }
+                    String[] newPermissions = new String[permissions.length-1];
+                    System.arraycopy(permissions,1,newPermissions,0,permissions.length-1);
+                    param.args[0] = newPermissions; //交由系统
                 }
 
             }
@@ -95,6 +102,8 @@ public class HookPermissionMethods extends HookMethods{
                 int resultCode = (int)param.args[1];
                 Intent intent = (Intent)param.args[2];
                 int rawRequestCode = intent.getIntExtra("rawRequestCode",0);
+                List<String> permissionName2Sys = new ArrayList<>();
+                permissionName2Sys.add(PERMISSION_SPECIAL_SKIP_CONTROL);//用于跳过拦截
                 if(requestCode == REQUEST_CODE_REQUESTPERMISSIONS){
                     if(resultCode == RESULT_OK){
                         if(intent!=null){
@@ -103,32 +112,30 @@ public class HookPermissionMethods extends HookMethods{
                             if(permissionNames!=null && permissionModes!=null){
                                 int[] grantResults = new int[permissionNames.length];
                                 for(int i=0;i<permissionNames.length;i++){
-
                                     switch (permissionModes[i]){
                                         case RestrictMode.ALLOW:   //ALLOW等同于DEFAULT
                                         case RestrictMode.DEFAULT:
-                                            String[] permissionName2Sys = new String[2];
-                                            permissionName2Sys[0] =PERMISSION_SPECIAL_SKIP_CONTROL; //用于跳过拦截
-                                            permissionName2Sys[1] = permissionNames[i];
-                                            ActivityCompat.requestPermissions(activity,permissionName2Sys, rawRequestCode);
+                                            permissionName2Sys.add(permissionNames[i]);
                                             grantResults[i] = PackageManager.PERMISSION_GRANTED;
                                             break;
                                         case RestrictMode.DENY:
                                             grantResults[i] = PackageManager.PERMISSION_DENIED;
                                             break;
                                         case RestrictMode.ALLOW_BUT_NULL:
-                                            grantResults[i] = PackageManager.PERMISSION_GRANTED;
-                                            break;
                                         case RestrictMode.ALLOW_BUT_FAKE:
                                             grantResults[i] = PackageManager.PERMISSION_GRANTED;
                                             break;
                                     }
                                 }
-                                //target: onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-                                for(int i=0;i<permissionNames.length;i++){
-                                    XposedBridge.log(String.format(Locale.CHINA,"%d %s %d", rawRequestCode, permissionNames[i], grantResults[i]));
+                                if(permissionName2Sys.size()>=2){
+                                    ActivityCompat.requestPermissions(activity,permissionName2Sys.toArray(new String[permissionName2Sys.size()]), rawRequestCode);
                                 }
 
+                                for(int i=0;i<permissionNames.length;i++){
+                                    XposedBridge.log(String.format(Locale.CHINA,"Permission Result: %d %s %d", rawRequestCode, permissionNames[i], grantResults[i]));
+                                }
+
+                                //target: onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
                                 XposedHelpers.callMethod(param.thisObject,
                                                          "onRequestPermissionsResult",
                                                          rawRequestCode, permissionNames, grantResults);
