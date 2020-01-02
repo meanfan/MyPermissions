@@ -17,6 +17,7 @@ import com.mean.mypermissions.bean.PermissionConfigs;
 import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.utils.AppConfigDBUtil;
 import com.mean.mypermissions.utils.AppUtil;
+import com.mean.mypermissions.utils.SuUtil;
 
 public class PermissionModeActivity extends AppCompatActivity {
     public static final String TAG = "PermissionModeActivity";
@@ -30,7 +31,7 @@ public class PermissionModeActivity extends AppCompatActivity {
     private int currentSelectedMode;
     private int currentHandlingPermissionPos = 0;
     private boolean isRequestMode = false;
-    private boolean[] isPermissionConfigured;
+    private boolean isCheckMode = false;
 
     private RadioGroup rg_mode;
     private Button btn_config,btn_cancel,btn_confirm;
@@ -71,12 +72,12 @@ public class PermissionModeActivity extends AppCompatActivity {
                     }
                 }
             }else if(action.equals("com.mean.mypermissions.intent.permissions.CHECK")) {  // 权限检查
+                isCheckMode = true;
 
                 //TODO 权限检查
-                if (appConfig != null) {  //数据库中有记录
+                if (appConfig == null) {  //数据库中无记录，返回拒绝
 
                 }else {
-
 
                 }
             }
@@ -84,6 +85,8 @@ public class PermissionModeActivity extends AppCompatActivity {
 
         if(appConfig == null || permissionNames == null || appConfig.getPermissionConfigs() == null){
             intentDataError();
+        }else {
+            packageName = appConfig.getAppPackageName();
         }
 
         // 初始化 permissionConfigs
@@ -131,6 +134,15 @@ public class PermissionModeActivity extends AppCompatActivity {
             public void onClick(View v) {
                 permissionConfigs.add(permissionNames[currentHandlingPermissionPos],currentSelectedMode);
                 permissionModes[currentHandlingPermissionPos] = currentSelectedMode;
+
+                if(currentSelectedMode == RestrictMode.ALLOW){
+                    //TODO 更改系统权限配置不起作用
+                    //SuUtil.grantPermission(packageName,permissionNames[currentHandlingPermissionPos]);
+                }else{
+                    //TODO 更改系统权限配置不起作用
+                    SuUtil.revokePermission(packageName,permissionNames[currentHandlingPermissionPos]);
+                }
+
                 currentHandlingPermissionPos++;
                 if(currentHandlingPermissionPos<permissionNames.length){ //不是最后一项权限
                     handlePermissionAtPos(currentHandlingPermissionPos);

@@ -1,10 +1,19 @@
 package com.mean.mypermissions.hook;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.CancellationSignal;
 
 import com.mean.mypermissions.MainActivity;
+
+import java.lang.reflect.Method;
+import java.util.Hashtable;
+import java.util.List;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -17,9 +26,13 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     public final static String modulePackageName = "com.mean.mypermissions";
+    public static final int CURSOR_MODE_EMPTY = 0;
+    public static final int CURSOR_MODE_FAKE = 1;
+
     private XSharedPreferences sharedPreferences;
     private Context context = null;
     protected static Activity currentActivity = null;
+    protected static Hashtable<Cursor,Integer> cursors;
     //private final ImplantReceiver receiver = new ImplantReceiver();
     //public static volatile Activity currentActivity = null;
     @Override
@@ -32,6 +45,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
          * type:   MethodReplacement
          * ref:
          */
+
         if(lpparam.packageName.equals(modulePackageName)){
             XposedHelpers.findAndHookMethod(MainActivity.class.getName(),
                                             lpparam.classLoader,
@@ -46,6 +60,8 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
         }
 
         XposedBridge.log("load app:"+lpparam.packageName);
+
+        cursors = new Hashtable<>();
 
         XposedHelpers.findAndHookMethod(Activity.class,
                                         "onResume",
@@ -124,6 +140,17 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         "onActivityResult",
                                         int.class, int.class, Intent.class,
                                         HookPermissionMethods.onActivityResult(lpparam));
+
+        /*
+         * desc:  通过 ContentResolver 读取内容（联系人等），获得 Cursor (由 BulkCursorToCursorAdaptor 实现）
+         * class: android.database.BulkCursorToCursorAdaptor
+         * method: int getCount()
+         * ref: 通过调试设备得到 Cursor 的实现为 BulkCursorToCursorAdaptor
+         */
+        XposedHelpers.findAndHookMethod("android.database.BulkCursorToCursorAdaptor", lpparam.classLoader,
+                                        "getCount",
+                                        HookPermissionMethods.getCount(lpparam));
+
 
     }
 

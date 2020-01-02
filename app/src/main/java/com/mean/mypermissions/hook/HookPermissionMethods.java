@@ -6,11 +6,16 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.CursorWindow;
+import android.net.Uri;
+import android.provider.ContactsContract;
 
 import androidx.core.app.ActivityCompat;
 
 import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.receiver.RequestPermissionReceiver;
+import com.mean.mypermissions.utils.ReflectUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +28,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import static android.app.Activity.RESULT_OK;
 
 public class HookPermissionMethods extends HookMethods{
-    public static final int REQUEST_CODE_REQUESTPERMISSIONS = 2342;
+    public static final int INTENT_REQUEST_CODE_PERMISSION_REQUEST = 2342;
+    public static final int INTENT_REQUEST_CODE_PERMISSION_CHECK = 2343;
     public static final String PERMISSION_SPECIAL_SKIP_CONTROL = "com.mean.permission.special.SKIP_CONTROL";
 
     public static XC_MethodHook requestPermissions(final XC_LoadPackage.LoadPackageParam lpparam){
@@ -50,11 +56,11 @@ public class HookPermissionMethods extends HookMethods{
                     intent.putExtra("rawRequestCode",(int)param.args[1]);
                     Activity activity = findActivity(context);
                     if(activity!=null){
-                        activity.startActivityForResult(intent, REQUEST_CODE_REQUESTPERMISSIONS);
+                        activity.startActivityForResult(intent, INTENT_REQUEST_CODE_PERMISSION_REQUEST);
                     }else {
                         XposedBridge.log("ERROR: activity is NULL");
                     }
-                    param.setResult(null);
+                    param.setResult(null);  //结束方法
                 }else if(permissions.length>=2){
                     String[] newPermissions = new String[permissions.length-1];
                     System.arraycopy(permissions,1,newPermissions,0,permissions.length-1);
@@ -72,23 +78,19 @@ public class HookPermissionMethods extends HookMethods{
             protected void beforeHookedMethod(final MethodHookParam param) throws Throwable {
                 XposedBridge.log("HOOK: checkPermission: name: " + param.args[0]);
                 Context context = (Context) param.thisObject;
-                String permissions = (String)param.args[0];
+                String permission = (String)param.args[0];
                 Intent intent = new Intent();
                 intent.setAction("com.mean.mypermissions.intent.permissions.CHECK");
                 intent.addCategory("android.intent.category.DEFAULT");
                 intent.putExtra("packageName",context.getPackageName());
-                intent.putExtra("permissionNames",permissions);
+                intent.putExtra("permissionName",permission);
                 Activity activity = findActivity(context);
                 if(activity!=null){
-                    //activity.startActivityForResult(intent,REQUEST_CODE_REQUESTPERMISSIONS);
+                    activity.startActivityForResult(intent, INTENT_REQUEST_CODE_PERMISSION_CHECK);
                 }else {
                     XposedBridge.log("ERROR: activity is NULL");
                 }
-
-                //sendBroadCast(context,lpparam.packageName,param.args[0].toString());
-                XposedBridge.log("HOOK: permission: Broadcast send");
-                //showDialog((Activity) param.thisObject,lpparam,param);
-                param.setResult(PackageManager.PERMISSION_GRANTED);  //TODO 根据配置文件决定结果
+                param.setResult(PackageManager.PERMISSION_DENIED);  //TODO 这里直接讲所有权限检查结果设置为拒绝，有些许性能问题
             }
         };
     }
@@ -104,7 +106,7 @@ public class HookPermissionMethods extends HookMethods{
                 int rawRequestCode = intent.getIntExtra("rawRequestCode",0);
                 List<String> permissionName2Sys = new ArrayList<>();
                 permissionName2Sys.add(PERMISSION_SPECIAL_SKIP_CONTROL);//用于跳过拦截
-                if(requestCode == REQUEST_CODE_REQUESTPERMISSIONS){
+                if(requestCode == INTENT_REQUEST_CODE_PERMISSION_REQUEST){
                     if(resultCode == RESULT_OK){
                         if(intent!=null){
                             String[] permissionNames = intent.getStringArrayExtra("permissionNames");
@@ -148,6 +150,28 @@ public class HookPermissionMethods extends HookMethods{
             }
         };
     }
+
+    public static XC_MethodHook getCount(final XC_LoadPackage.LoadPackageParam lpparam){
+        return new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                Cursor cursor = (Cursor) param.thisObject;  //实际为 BulkCursorToCursorAdaptor
+                if(cursor!=null){
+                    XposedBridge.log("hit cursor");
+                    CursorWindow cursorWindow = (CursorWindow)ReflectUtil.getSuperClassesField(cursor,"mWindow"); //通过反射查找cursor的私有变量mWindow（来自父类）
+                    if(cursorWindow!=null){
+                        XposedBridge.log("cursorWindow found");
+                        String mName = (String)ReflectUtil.getSuperClassesField(cursorWindow,"mName");  //通过反射查找cursorWindow的私有变量mName（来自父类）
+                        if(mName!=null && mName.contains("com.android.providers.contacts")){ //cursor.mWindow.mName包含了这个cursor的信息
+                            XposedBridge.log("contacts cursor match");
+                            param.setResult(0);
+                        }
+                    }
+                }
+            }
+        };
+    }
+
 
     @Deprecated
     private static void sendBroadCast(Context context, String packageName, String permissionName) {
