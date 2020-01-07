@@ -1,40 +1,42 @@
 package com.mean.mypermissions.hook;
 
+import android.Manifest;
 import android.app.Activity;
-import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
-import android.net.Uri;
-import android.os.Bundle;
-import android.os.CancellationSignal;
 
 import com.mean.mypermissions.MainActivity;
-
-import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.List;
+import java.util.Set;
 
+import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
-import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit {
+    private static String MODULE_PATH = null;
     public final static String modulePackageName = "com.mean.mypermissions";
-    public static final int CURSOR_MODE_EMPTY = 0;
-    public static final int CURSOR_MODE_FAKE = 1;
+    public static final int INTENT_REQUEST_CODE_PERMISSION_REQUEST = 2342;
+    public static final int INTENT_REQUEST_CODE_PERMISSION_CHECK = 2343;
+    public static final int INTENT_REQUEST_CODE_FAKE_CONTACT = 2344;
 
-    private XSharedPreferences sharedPreferences;
-    private Context context = null;
+    public static final Set<String> permissionWhiteSet = new HashSet<>();
     protected static Activity currentActivity = null;
-    protected static Hashtable<Cursor,Integer> cursors;
-    //private final ImplantReceiver receiver = new ImplantReceiver();
-    //public static volatile Activity currentActivity = null;
+    private Hashtable<String,Integer> runtimePermissionStatus = new Hashtable<>();
+    public String fakeContactName;
+    public String fakeContactPhone;
+
+    private static final String[] permissionWhiteList= new String[]{
+            "android.permission.INTERACT_ACROSS_USERS",
+            "android.permission.INTERACT_ACROSS_USERS_FULL",
+    };
+
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
 
@@ -61,18 +63,26 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
 
         XposedBridge.log("load app:"+lpparam.packageName);
 
-        cursors = new Hashtable<>();
+        permissionWhiteSet.addAll(Arrays.asList(permissionWhiteList));
 
         XposedHelpers.findAndHookMethod(Activity.class,
-                                        "onResume",
+                                        "onStart",
                                         new XC_MethodHook() {
                                             @Override
                                             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                                                Activity activity = (Activity)param.thisObject;
                                                 if(param.thisObject == null){
                                                     XposedBridge.log("ERROR: activity is NULL");
                                                 }else {
-                                                    XposedBridge.log("HOOK: activity got");
-                                                    currentActivity = (Activity) param.thisObject;
+                                                    currentActivity = activity;
+                                                    if(fakeContactName == null || fakeContactPhone == null){
+                                                        Intent intent = new Intent();
+                                                        intent.putExtra("packageName",lpparam.packageName);
+                                                        intent.setAction("com.mean.mypermissions.intent.permissions.fake.CONTACT");
+                                                        intent.addCategory("android.intent.category.DEFAULT");
+                                                        XposedBridge.log("HOOK: send intent to get fakeContact");
+                                                        activity.startActivityForResult(intent, INTENT_REQUEST_CODE_FAKE_CONTACT);
+                                                    }
                                                 }
                                             }
                                         });
@@ -86,9 +96,10 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
          */
         XposedHelpers.findAndHookMethod("android.content.ContextWrapper",
                                         lpparam.classLoader,
-                                        "checkSelfPermission",
-                                        String.class,
-                                        HookPermissionMethods.checkPermission(lpparam));
+                                        "checkPermission",
+                                        String.class, int.class,int.class,
+                                        HookPermissionMethods.checkPermission(lpparam,this));
+
         /*
          * desc:   应用权限检查2
          * class:  android.app.Activity
@@ -109,11 +120,13 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
          * type:   MethodHook
          * ref:
          */
-        XposedHelpers.findAndHookMethod("android.content.ContextWrapper",
+
+        /*XposedHelpers.findAndHookMethod("android.content.ContextWrapper",
                                         ClassLoader.getSystemClassLoader(),
                                         "checkCallingOrSelfPermission",
-                                        String.class,
-                                        HookPermissionMethods.checkPermission(lpparam));
+                                        String.class,int.class,int.class,
+                                        HookPermissionMethods.checkPermission(lpparam,this));*/
+
 
         /*
          * desc:   应用权限申请
@@ -127,7 +140,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
                                         "requestPermissions",
                                         String[].class,
                                         int.class,
-                                        HookPermissionMethods.requestPermissions(lpparam));
+                                        HookPermissionMethods.requestPermissions(lpparam,this));
 
         /*
          * desc:   应用权限申请结果回调
@@ -139,24 +152,48 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
         XposedHelpers.findAndHookMethod("android.app.Activity", lpparam.classLoader,
                                         "onActivityResult",
                                         int.class, int.class, Intent.class,
-                                        HookPermissionMethods.onActivityResult(lpparam));
+                                        HookPermissionMethods.onActivityResult(lpparam,this));
 
         /*
          * desc:  通过 ContentResolver 读取内容（联系人等），获得 Cursor (由 BulkCursorToCursorAdaptor 实现）
          * class: android.database.BulkCursorToCursorAdaptor
-         * method: int getCount()
+         * method: int BulkCursorToCursorAdaptor$getCount()
          * ref: 通过调试设备得到 Cursor 的实现为 BulkCursorToCursorAdaptor
          */
         XposedHelpers.findAndHookMethod("android.database.BulkCursorToCursorAdaptor", lpparam.classLoader,
                                         "getCount",
-                                        HookPermissionMethods.getCount(lpparam));
-
-
+                                        HookPermissionMethods.BulkCursorToCursorAdaptor$getCount(lpparam, this));
     }
 
     @Override
     public void initZygote(IXposedHookZygoteInit.StartupParam startupParam) {
-        this.sharedPreferences = new XSharedPreferences(modulePackageName, "default");
-        //XposedBridge.log(modulePackageName+" initZygote");
+        MODULE_PATH = startupParam.modulePath;
+    }
+
+    public void updateRuntimePermissionStatus(String permissionName, int mode){
+        if(permissionName!=null){
+            runtimePermissionStatus.put(permissionName,mode);
+        }
+    }
+    public int getRuntimePermissionStatus(String permissionName){
+        if(permissionName!=null){
+            Integer mode = runtimePermissionStatus.get(permissionName);
+            if(mode!=null){
+                return mode;
+            }
+        }
+        return -1;
+    }
+
+    public boolean isPermissionOnWhiteList(String permission){
+        XposedBridge.log("isPermissionOnWhiteList: arg permission: " + permission);
+        if(permission!=null){
+
+            return permissionWhiteSet.contains(permission);
+        }else {
+            XposedBridge.log("ERROR: isPermissionOnWhiteList: arg permission is null");
+            return false;
+        }
+
     }
 }
