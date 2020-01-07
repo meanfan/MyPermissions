@@ -9,6 +9,7 @@ import com.mean.mypermissions.dao.DaoMaster;
 import com.mean.mypermissions.dao.DaoSession;
 import com.mean.mypermissions.utils.AppUtil;
 
+import java.io.File;
 import java.util.List;
 
 public class App extends Application {
@@ -18,6 +19,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        initFile();
         initGreenDAO();
     }
 
@@ -35,4 +37,10 @@ public class App extends Application {
     public static void initAppConfig(Context context){
         App.appConfigs = AppUtil.getAllUserAppConfigs(context);
     }
+
+    private void initFile(){
+        AppUtil.copyAssetFile(this,"contacts2_fake.db",
+                              getExternalFilesDir(null)+ File.separator+"fakedb","contacts2_fake.db");
+    }
+
 }

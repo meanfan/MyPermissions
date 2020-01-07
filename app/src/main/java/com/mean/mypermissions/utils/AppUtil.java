@@ -14,6 +14,12 @@ import com.mean.mypermissions.bean.AppConfig;
 import com.mean.mypermissions.bean.PermissionConfigs;
 import com.mean.mypermissions.bean.RestrictMode;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,5 +104,31 @@ public class AppUtil {
         }
         return  true;
     }
+
+    public static void copyAssetFile(Context context, String assetsFileName,
+                            String savePath, String saveName) {
+        String filename = savePath + "/" + saveName;
+        File dir = new File(savePath);
+        // 如果目录不中存在，创建这个目录
+        if (!dir.exists())
+            dir.mkdir();
+        try {
+            if (!(new File(filename)).exists()) {
+                InputStream is = context.getResources().getAssets()
+                        .open(assetsFileName);
+                FileOutputStream fos = new FileOutputStream(filename);
+                byte[] buffer = new byte[7168];
+                int count = 0;
+                while ((count = is.read(buffer)) > 0) {
+                    fos.write(buffer, 0, count);
+                }
+                fos.close();
+                is.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }

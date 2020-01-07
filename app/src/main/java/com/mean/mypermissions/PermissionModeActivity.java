@@ -13,6 +13,7 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import com.mean.mypermissions.bean.AppConfig;
+import com.mean.mypermissions.bean.FakeContact;
 import com.mean.mypermissions.bean.PermissionConfigs;
 import com.mean.mypermissions.bean.RestrictMode;
 import com.mean.mypermissions.utils.AppConfigDBUtil;
@@ -24,6 +25,7 @@ public class PermissionModeActivity extends AppCompatActivity {
     private AppConfig appConfig;
     private String packageName;
     private String[] permissionNames;
+    private String permissionNameCheck;
     private int[] permissionModes;
     private int rawRequestCode;
 
@@ -42,16 +44,14 @@ public class PermissionModeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_permission_mode);
         appConfig = (AppConfig) getIntent().getSerializableExtra("appConfig");
         packageName = getIntent().getStringExtra("packageName");
+
         permissionNames = getIntent().getStringArrayExtra("permissionNames");
         permissionModes = getIntent().getIntArrayExtra("permissionModes");
         rawRequestCode = getIntent().getIntExtra("rawRequestCode",-1);
-        if(permissionNames == null){  //permissionNames不可为null
-            intentDataError();
-        }
 
         // 第三方应用权限请求调用
-        Intent intent = getIntent();
-        String action = intent.getAction();
+        Intent receivedIntent = getIntent();
+        String action = receivedIntent.getAction();
         if(action!=null){       //外部调用进行权限请求
             if (packageName == null) {  //packageName不可为null
                 intentDataError();
@@ -73,13 +73,40 @@ public class PermissionModeActivity extends AppCompatActivity {
                 }
             }else if(action.equals("com.mean.mypermissions.intent.permissions.CHECK")) {  // 权限检查
                 isCheckMode = true;
-
+                permissionNameCheck = receivedIntent.getStringExtra("permissionNameCheck");
                 //TODO 权限检查
-                if (appConfig == null) {  //数据库中无记录，返回拒绝
-
+                int rstMode;
+                if (appConfig != null && appConfig.getPermissionConfigs()!=null && appConfig.getPermissionConfigs().get(permissionNameCheck)!=null) {  //数据库中有记录
+                    rstMode = appConfig.getPermissionConfigs().get(permissionNameCheck);
                 }else {
-
+                    rstMode = RestrictMode.DEFAULT;
                 }
+                Intent rstIntentPermissionCheck = new Intent();
+                rstIntentPermissionCheck.putExtra("permissionNameCheck",permissionNameCheck);
+                rstIntentPermissionCheck.putExtra("permissionMode",rstMode);
+                setResult(RESULT_OK,rstIntentPermissionCheck);
+                finish();
+                return;
+            }else if (action.equals("com.mean.mypermissions.intent.permissions.fake.CONTACT")) {
+               /* 获取假联系人数据库Url
+                File fakeContactPath = new File(getExternalFilesDir(null), "fakedb");
+                File newFile = new File(fakeContactPath, "contacts_fake.db");
+                Uri uri = getUriForFile(this, "com.mean.mypermissions.fileProvider", newFile);
+                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                Intent rstIntentFakeContact = new Intent();
+                rstIntentFakeContact.setData(uri);
+                setResult(RESULT_OK,rstIntentFakeContact);
+                finish();
+                */
+                FakeContact fakeContact = generateDefaultFakeContact(0);
+                Intent rstIntentFakeContact = new Intent();
+                rstIntentFakeContact.putExtra("fakeContactName",fakeContact.getName());
+                rstIntentFakeContact.putExtra("fakeContactPhone",fakeContact.getPhone());
+                setResult(RESULT_OK,rstIntentFakeContact);
+                finish();
+                return;
             }
         }
 
@@ -134,14 +161,14 @@ public class PermissionModeActivity extends AppCompatActivity {
             public void onClick(View v) {
                 permissionConfigs.add(permissionNames[currentHandlingPermissionPos],currentSelectedMode);
                 permissionModes[currentHandlingPermissionPos] = currentSelectedMode;
-
+                //TODO 系统授权
+                /*
                 if(currentSelectedMode == RestrictMode.ALLOW){
-                    //TODO 更改系统权限配置不起作用
-                    //SuUtil.grantPermission(packageName,permissionNames[currentHandlingPermissionPos]);
+                    SuUtil.grantPermission(packageName, permissionNames[currentHandlingPermissionPos]);
                 }else{
-                    //TODO 更改系统权限配置不起作用
                     SuUtil.revokePermission(packageName,permissionNames[currentHandlingPermissionPos]);
                 }
+                 */
 
                 currentHandlingPermissionPos++;
                 if(currentHandlingPermissionPos<permissionNames.length){ //不是最后一项权限
@@ -234,5 +261,18 @@ public class PermissionModeActivity extends AppCompatActivity {
     private void intentDataError(){
         Toast.makeText(this, "参数错误", Toast.LENGTH_SHORT).show();
         finish();
+    }
+
+    public FakeContact generateDefaultFakeContact(int key){
+        char firstNameChar = 'A';
+        firstNameChar = (char)((int)firstNameChar+key%26);
+        String name = String.format("%c Fake",firstNameChar);
+        String phone = String.valueOf(1234567890+key);
+        FakeContact fakeContact = new FakeContact();
+        fakeContact.setName(name);
+        fakeContact.setPhone(phone);
+        fakeContact.setPhoneType("phone");
+        return fakeContact;
+
     }
 }

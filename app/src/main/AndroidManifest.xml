@@ -20,6 +20,7 @@
             <intent-filter>
                 <action android:name="com.mean.mypermissions.intent.permissions.REQUEST"/>
                 <action android:name="com.mean.mypermissions.intent.permissions.CHECK"/>
+                <action android:name="com.mean.mypermissions.intent.permissions.fake.CONTACT"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity>
@@ -44,6 +45,16 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.mean.mypermissions.fileProvider"
+            android:grantUriPermissions="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
