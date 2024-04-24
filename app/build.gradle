@@ -28,7 +28,7 @@ greendao {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
